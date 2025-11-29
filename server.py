@@ -1,20 +1,27 @@
 import os
 import pickle
+import tempfile
 from functools import lru_cache
 from typing import Optional
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+import httpx
+
+load_dotenv()
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from reader3 import Book, BookMetadata, ChapterContent, TOCEntry
+from reader3 import Book, BookMetadata, ChapterContent, TOCEntry, process_epub, save_to_pickle
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# Where are the book folders located?
-BOOKS_DIR = "."
+# Where are the book folders located? Use /data on Railway with volume
+BOOKS_DIR = os.getenv("BOOKS_DIR", ".")
+
+# BlackBox AI API key from environment
+BLACKBOX_API_KEY = os.getenv("BLACKBOX_API_KEY", "")
 
 @lru_cache(maxsize=10)
 def load_book_cached(folder_name: str) -> Optional[Book]:
@@ -42,7 +49,8 @@ async def library_view(request: Request):
     # Scan directory for folders ending in '_data' that have a book.pkl
     if os.path.exists(BOOKS_DIR):
         for item in os.listdir(BOOKS_DIR):
-            if item.endswith("_data") and os.path.isdir(item):
+            full_path = os.path.join(BOOKS_DIR, item)
+            if item.endswith("_data") and os.path.isdir(full_path):
                 # Try to load it to get the title
                 book = load_book_cached(item)
                 if book:
@@ -104,7 +112,84 @@ async def serve_image(book_id: str, image_name: str):
 
     return FileResponse(img_path)
 
+@app.post("/api/chat")
+async def chat(request: Request):
+    """Send chat request to BlackBox AI API and return complete response."""
+    if not BLACKBOX_API_KEY:
+        return {"error": "BLACKBOX_API_KEY not configured"}
+
+    data = await request.json()
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.blackbox.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {BLACKBOX_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": data.get("model", "blackboxai/anthropic/claude-sonnet-4.5"),
+                "messages": data["messages"],
+                "stream": False
+            },
+            timeout=120.0
+        )
+
+    result = response.json()
+
+    # Extract the response content
+    try:
+        content = result["choices"][0]["message"]["content"]
+        return {"response": content}
+    except (KeyError, IndexError):
+        return {"error": "Invalid response from API", "details": result}
+
+
+@app.post("/api/upload")
+async def upload_epub(file: UploadFile = File(...)):
+    """Handle EPUB file upload and processing."""
+    if not file.filename.endswith('.epub'):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Only .epub files are allowed"}
+        )
+
+    try:
+        # Save uploaded file to temp location
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        # Generate output directory name from book title
+        base_name = os.path.splitext(file.filename)[0]
+        output_dir = os.path.join(BOOKS_DIR, f"{base_name}_data")
+
+        # Process the EPUB
+        book_obj = process_epub(tmp_path, output_dir)
+        save_to_pickle(book_obj, output_dir)
+
+        # Cleanup temp file
+        os.unlink(tmp_path)
+
+        # Clear the LRU cache so new book appears
+        load_book_cached.cache_clear()
+
+        return JSONResponse(content={
+            "success": True,
+            "title": book_obj.metadata.title,
+            "id": f"{base_name}_data"
+        })
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
-    print("Starting server at http://127.0.0.1:8123")
-    uvicorn.run(app, host="127.0.0.1", port=8123)
+    port = int(os.getenv("PORT", 8123))
+    print(f"Starting server at http://0.0.0.0:{port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

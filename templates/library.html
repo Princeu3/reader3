@@ -12,16 +12,29 @@
         .book-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.2s; }
         .book-title { font-size: 1.2em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
         .book-meta { color: #666; font-size: 0.9em; margin-bottom: 15px; }
-        .btn { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 8px 15px; border-radius: 4px; font-size: 0.9em; }
+        .btn { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 8px 15px; border-radius: 4px; font-size: 0.9em; border: none; cursor: pointer; }
         .btn:hover { background: #2980b9; }
+        .upload-section { margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .upload-section input[type="file"] { display: none; }
+        .upload-label { display: inline-block; background: #27ae60; color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 0.95em; }
+        .upload-label:hover { background: #219a52; }
+        .upload-status { margin-top: 10px; font-size: 0.9em; color: #666; }
+        .upload-status.error { color: #e74c3c; }
+        .upload-status.success { color: #27ae60; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Library</h1>
 
+        <div class="upload-section">
+            <input type="file" id="epub-input" accept=".epub">
+            <label for="epub-input" class="upload-label">+ Upload EPUB</label>
+            <div id="upload-status" class="upload-status"></div>
+        </div>
+
         {% if not books %}
-            <p>No processed books found. Run <code>reader3.py</code> on an epub first.</p>
+            <p>No books in your library yet. Upload an EPUB to get started!</p>
         {% endif %}
 
         <div class="book-grid">
@@ -37,5 +50,42 @@
             {% endfor %}
         </div>
     </div>
+
+    <script>
+        document.getElementById('epub-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const status = document.getElementById('upload-status');
+            status.className = 'upload-status';
+            status.textContent = `Uploading "${file.name}"...`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    status.className = 'upload-status success';
+                    status.textContent = `Added "${data.title}" to your library!`;
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    status.className = 'upload-status error';
+                    status.textContent = `Error: ${data.error}`;
+                }
+            } catch (err) {
+                status.className = 'upload-status error';
+                status.textContent = `Upload failed: ${err.message}`;
+            }
+
+            e.target.value = '';
+        });
+    </script>
 </body>
 </html>

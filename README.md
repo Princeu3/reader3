@@ -2,25 +2,56 @@
 
 ![reader3](reader3.png)
 
-A lightweight, self-hosted EPUB reader that lets you read through EPUB books one chapter at a time. This makes it very easy to copy paste the contents of a chapter to an LLM, to read along. Basically - get epub books (e.g. [Project Gutenberg](https://www.gutenberg.org/) has many), open them up in this reader, copy paste text around to your favorite LLM, and read together and along.
+A lightweight, self-hosted EPUB reader with built-in AI chat. Upload EPUB books and read them alongside an LLM that has context of the current chapter.
 
-This project was 90% vibe coded just to illustrate how one can very easily [read books together with LLMs](https://x.com/karpathy/status/1990577951671509438). I'm not going to support it in any way, it's provided here as is for other people's inspiration and I don't intend to improve it. Code is ephemeral now and libraries are over, ask your LLM to change it in whatever way you like.
+## Features
 
-## Usage
+- Upload EPUB files directly from the web interface
+- Clean, distraction-free reading experience
+- Built-in AI chat sidebar (uses BlackBox AI for Claude/GPT/Gemini access)
+- Table of contents navigation
+- Works locally or deployed to the cloud
 
-The project uses [uv](https://docs.astral.sh/uv/). So for example, download [Dracula EPUB3](https://www.gutenberg.org/ebooks/345) to this directory as `dracula.epub`, then:
+## Local Usage
 
+The project uses [uv](https://docs.astral.sh/uv/).
+
+1. Create a `.env` file with your BlackBox AI API key:
+   ```
+   BLACKBOX_API_KEY=your-api-key-here
+   ```
+
+2. Run the server:
+   ```bash
+   uv run server.py
+   ```
+
+3. Visit [localhost:8123](http://localhost:8123/) and upload an EPUB!
+
+You can also process EPUBs via CLI:
 ```bash
-uv run reader3.py dracula.epub
+uv run reader3.py book.epub
 ```
 
-This creates the directory `dracula_data`, which registers the book to your local library. We can then run the server:
+## Deploy to Railway
 
-```bash
-uv run server.py
-```
+1. Push this repo to GitHub
 
-And visit [localhost:8123](http://localhost:8123/) to see your current Library. You can easily add more books, or delete them from your library by deleting the folder. It's not supposed to be complicated or complex.
+2. Create a new project on [railway.app](https://railway.app) and connect your repo
+
+3. Add a **Volume** (for persistent book storage):
+   - Click "+ New" → "Volume"
+   - Mount path: `/data`
+
+4. Set environment variables in Railway:
+   ```
+   BLACKBOX_API_KEY=your-api-key
+   BOOKS_DIR=/data
+   ```
+
+5. Deploy! Railway will auto-build using the Dockerfile.
+
+**Cost**: ~$0.25/month for storage, compute covered by $5 free credit.
 
 ## License
 
