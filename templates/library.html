@@ -21,6 +21,16 @@
         .upload-status { margin-top: 10px; font-size: 0.9em; color: #666; }
         .upload-status.error { color: #e74c3c; }
         .upload-status.success { color: #27ae60; }
+
+        @media (max-width: 640px) {
+            body { padding: 16px; }
+            h1 { font-size: 1.4em; }
+            .book-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 20px; }
+            .book-card { padding: 16px; }
+            .upload-section { padding: 16px; }
+            .upload-label { padding: 12px 20px; width: 100%; text-align: center; box-sizing: border-box; }
+            .btn { padding: 10px 18px; }
+        }
     </style>
 </head>
 <body>

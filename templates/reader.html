@@ -248,6 +248,73 @@
             padding-top: 0.75em;
             border-top: 1px solid #f0f0f0;
         }
+
+        /* ========== MOBILE RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            /* Sidebar becomes overlay */
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 200;
+                width: 280px;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+            }
+            #sidebar.collapsed {
+                width: 0;
+                box-shadow: none;
+            }
+
+            /* Sidebar backdrop overlay */
+            #sidebar-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.3);
+                z-index: 150;
+            }
+            #sidebar-backdrop.active {
+                display: block;
+            }
+
+            /* Content padding */
+            .content-container {
+                padding: 50px 16px 40px;
+                font-size: 1rem;
+            }
+
+            /* Navigation buttons */
+            .chapter-nav {
+                margin-top: 40px;
+                gap: 8px;
+            }
+            .nav-btn {
+                padding: 8px 14px;
+                font-size: 0.8rem;
+            }
+
+            /* Chat panel full width */
+            #chat-panel {
+                width: 100vw !important;
+            }
+
+            /* Chat FAB position */
+            #chat-fab {
+                right: 16px;
+                bottom: 16px;
+                width: 48px;
+                height: 48px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .content-container {
+                padding: 50px 12px 32px;
+                font-size: 0.95rem;
+                line-height: 1.7;
+            }
+        }
     </style>
 </head>
 <body>
@@ -261,6 +328,9 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
         </svg>
     </button>
+
+    <!-- Sidebar Backdrop (mobile) -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
     <!-- SIDEBAR -->
     <div id="sidebar">
@@ -330,7 +400,7 @@
     </button>
 
     <!-- Chat Panel -->
-    <div id="chat-panel" class="fixed right-0 top-0 h-screen w-[420px] bg-white border-l border-neutral-200 flex flex-col z-[1000] translate-x-full shadow-2xl shadow-neutral-900/10">
+    <div id="chat-panel" class="fixed right-0 top-0 h-screen w-full sm:w-[420px] bg-white border-l border-neutral-200 flex flex-col z-[1000] translate-x-full shadow-2xl shadow-neutral-900/10">
 
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-100 bg-neutral-50/80 backdrop-blur-sm">
@@ -410,8 +480,11 @@
 
     <script>
         // ========== SIDEBAR TOGGLE ==========
+        const isMobile = () => window.innerWidth <= 768;
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
             const openIcon = document.getElementById('sidebar-open-icon');
             const closeIcon = document.getElementById('sidebar-close-icon');
 
@@ -420,25 +493,36 @@
             if (sidebar.classList.contains('collapsed')) {
                 openIcon.classList.remove('hidden');
                 closeIcon.classList.add('hidden');
+                backdrop.classList.remove('active');
             } else {
                 openIcon.classList.add('hidden');
                 closeIcon.classList.remove('hidden');
+                if (isMobile()) backdrop.classList.add('active');
             }
 
-            // Save preference
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            // Save preference (desktop only)
+            if (!isMobile()) {
+                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            }
         }
 
         // Restore sidebar state on load
         document.addEventListener('DOMContentLoaded', () => {
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            if (isCollapsed) {
+            if (isMobile()) {
+                // Always start collapsed on mobile
                 document.getElementById('sidebar').classList.add('collapsed');
                 document.getElementById('sidebar-open-icon').classList.remove('hidden');
                 document.getElementById('sidebar-close-icon').classList.add('hidden');
             } else {
-                document.getElementById('sidebar-open-icon').classList.add('hidden');
-                document.getElementById('sidebar-close-icon').classList.remove('hidden');
+                const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (isCollapsed) {
+                    document.getElementById('sidebar').classList.add('collapsed');
+                    document.getElementById('sidebar-open-icon').classList.remove('hidden');
+                    document.getElementById('sidebar-close-icon').classList.add('hidden');
+                } else {
+                    document.getElementById('sidebar-open-icon').classList.add('hidden');
+                    document.getElementById('sidebar-close-icon').classList.remove('hidden');
+                }
             }
         });
 
